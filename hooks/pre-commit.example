@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Example pre-commit hook using tech-team.
+# Install automatically with: tech-team install-hook
+# Or copy this file to .git/hooks/pre-commit in the target repo.
+
+set -e
+
+tech-team pre-commit --repo "$(git rev-parse --show-toplevel)"
