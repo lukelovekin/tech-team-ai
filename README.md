@@ -115,13 +115,45 @@ hook scripts are bash). Python 3.11+ required.
 ## Install
 
 ```bash
-git clone <this-repo>
+git clone git@github.com:lukelovekin/tech-team-ai.git
 cd tech-team-ai
 python3 -m venv venv && source venv/bin/activate
 pip install -e .
 
 cp .env.example .env
-# set ANTHROPIC_API_KEY in .env
+# open .env and set ANTHROPIC_API_KEY=sk-ant-...
+```
+
+### First run
+
+Activate the venv and verify everything is wired up:
+
+```bash
+source ~/tech-team-ai/venv/bin/activate
+tech-team --help
+```
+
+The `tech-team` command is now available in any terminal session where the venv is active.
+To use it from any repo without manually activating first, add this to your shell profile
+(`~/.zshrc` or `~/.bashrc`):
+
+```bash
+source ~/tech-team-ai/venv/bin/activate
+```
+
+Then try it on any repo you have locally:
+
+```bash
+cd ~/your-project
+tech-team review          # reviewer reads your working tree
+tech-team check           # all agents on your unpushed commits
+```
+
+Or point it at a path directly without changing directory:
+
+```bash
+tech-team review --repo ~/your-project/src/
+tech-team check --repo ~/your-project --base main
 ```
 
 ---
