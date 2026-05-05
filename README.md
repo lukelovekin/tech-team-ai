@@ -1,72 +1,71 @@
 # tech-team-ai
 
 An AI software team you run from the terminal. Specialist Claude agents that operate on any
-repository — implementing features, reviewing code, writing tests, planning architecture, and
+repository: implementing features, reviewing code, writing tests, planning architecture, and
 auditing for security. All from a single `tech-team` command.
 
 ---
 
 ## Why this vs just prompting Claude?
 
-When you prompt Claude directly you are the orchestrator — routing context between roles,
-copy-pasting output back in, deciding when it's good enough. tech-team automates that layer.
+When you prompt Claude directly you are the orchestrator. You route context between roles,
+copy-paste output back in, and decide when it's good enough. tech-team automates that layer.
 
 **What you get that you can't get from a chat prompt:**
 
-- **Specialist depth** — Each agent has a tuned system prompt encoding specific priorities.
-  The reviewer checks correctness → regression risk → design patterns → redundancy → security
-  → performance → accessibility (ARIA, keyboard nav, focus management, `prefers-reduced-motion`).
+- **Specialist depth:** each agent has a tuned system prompt encoding specific priorities.
+  The reviewer checks correctness, regression risk, design patterns, redundancy, security,
+  performance, and accessibility (ARIA, keyboard nav, focus management, `prefers-reduced-motion`).
   You'd have to write that prompt yourself every single time otherwise.
 
-- **Real codebase access** — Agents read your actual files, search across the repo with grep,
-  run your test suite, check git history. They work on the code, not a description of it.
+- **Real codebase access:** agents read your actual files, search across the repo with grep,
+  run your test suite, and check git history. They work on the code, not a description of it.
 
-- **Agentic loops** — One agent run is many steps: read existing patterns → write code →
-  run tests → fix failures → check diff. A chat response is one shot.
+- **Agentic loops:** one agent run is many steps. Read existing patterns, write code, run
+  tests, fix failures, check diff. A chat response is one shot.
 
-- **Multi-agent review** — `collab` chains specialists so the reviewer catches what the
-  developer missed, QA covers what the reviewer didn't think to test, security audits the
+- **Multi-agent review:** `collab` chains specialists so the reviewer catches what the
+  developer missed, QA covers what the reviewer didn't think to test, and security audits the
   final state. That's normally a team of people. You get it as one command.
 
-- **Automatic scope** — `check` knows exactly which commits haven't been pushed and focuses
-  agents on just those changes. `fix` knows what's staged. Chat has no concept of your git
-  state.
+- **Automatic scope:** `check` knows exactly which commits haven't been pushed and focuses
+  agents on just those changes. `fix` knows what's staged. Chat has no concept of your git state.
 
-- **Built into the commit flow** — The global pre-commit hook means review + security runs
+- **Built into the commit flow:** the global pre-commit hook means review and security run
   on every commit across every repo without you remembering to ask.
 
-The force multiplier: you express intent once → agents do multi-step, multi-perspective work
-→ you see the diff and confirm. The cognitive overhead of orchestrating that manually disappears.
+The force multiplier: you express intent once, agents do multi-step multi-perspective work,
+you see the diff and confirm. The cognitive overhead of orchestrating that manually disappears.
 
 ---
 
 ## Two ways to work
 
-**Path A — you write the code, agents review it:**
+**Path A: you write the code, agents review it**
 
 ```
-write code  →  git add  →  tech-team fix  →  git commit
-                                ↑
-                    reviews staged changes
-                    if issues found: offers to fix automatically
-                    if clean: "ready to commit"
+write code  ->  git add  ->  tech-team fix  ->  git commit
+                                  |
+                      reviews staged changes
+                      if issues found: offers to fix automatically
+                      if clean: "ready to commit"
 ```
 
 The pre-commit hook does the same check automatically on every `git commit`.
 Use `tech-team fix` to resolve issues interactively before the hook fires.
 
-**Path B — agents write the code, you confirm:**
+**Path B: agents write the code, you confirm**
 
 ```
-tech-team collab "task"  →  git add  →  git commit
-        ↑
-  architect plans → you approve
+tech-team collab "task"  ->  git add  ->  git commit
+        |
+  architect plans, you approve
   developer implements
   reviewer + QA + security loop until all satisfied
-  full diff shown → you confirm before anything is kept
+  full diff shown, you confirm before anything is kept
 ```
 
-Both paths lead to the same place — a clean, reviewed commit. Choose based on whether you
+Both paths lead to the same place: a clean, reviewed commit. Choose based on whether you
 want to write the code yourself or hand it to the agents.
 
 ---
@@ -85,17 +84,17 @@ cp .env.example .env
 tech-team --help
 ```
 
-**API key, not Claude.ai subscription** — This calls the Anthropic API directly, which is
+**API key, not Claude.ai subscription:** this calls the Anthropic API directly, which is
 separate from a claude.ai subscription. You need an API key from
 [console.anthropic.com](https://console.anthropic.com). If you already use Claude Code you
 likely have API access, but it's a separate billing line from the claude.ai subscription.
 
-**Cost** — Agents are pay-per-use (token-based). A single `review` or `dev` on a small
-change is cheap. A `collab` run with 5 rounds × 4 agents on a large feature is not trivial.
+**Cost:** agents are pay-per-use (token-based). A single `review` or `dev` on a small
+change is cheap. A `collab` run with 5 rounds and 4 agents on a large feature is not trivial.
 Prompt caching is applied to all system prompts, which reduces cost on the multi-turn
 tool-use loops, but set expectations before running `collab` on a 3000-line file.
 
-**Platform** — Works on Mac and Linux. Windows users need WSL or Git Bash (the pre-commit
+**Platform:** works on Mac and Linux. Windows users need WSL or Git Bash (the pre-commit
 hook scripts are bash). Python 3.11+ required.
 
 ---
@@ -160,14 +159,16 @@ tech-team check --repo ~/your-project --base main
 
 ## Commands
 
-### `dev` — implement a feature or fix
+### `dev`
+
+Implement a feature or fix from a prompt.
 
 ```bash
 tech-team dev "add rate limiting to the /api/chat endpoint"
 tech-team dev "fix the N+1 query in UserService.list()"
 ```
 
-Use `--plan` to run the **Architect first** — it produces a structured implementation plan,
+Use `--plan` to run the Architect first. It produces a structured implementation plan,
 you confirm it, then the Developer follows it. Good for anything non-trivial.
 
 ```bash
@@ -178,7 +179,13 @@ For a full iterative cycle with review feedback, use `collab` instead.
 
 ---
 
-### `review` — code review
+### `review`
+
+Code review: correctness, regression risk, design pattern consistency, redundancy,
+security, performance, maintainability, and **accessibility** (semantic HTML, ARIA, keyboard
+navigation, focus management, colour contrast considerations, `prefers-reduced-motion`).
+
+Findings are labelled `[CRITICAL]` / `[WARNING]` / `[INFO]` with a concrete suggested fix for each.
 
 ```bash
 tech-team review                   # review working tree changes
@@ -186,40 +193,42 @@ tech-team review --staged          # review only staged changes
 tech-team review src/auth/         # review a specific path
 ```
 
-The Reviewer checks: correctness, regression risk, design pattern consistency, redundancy,
-security, performance, maintainability, and **accessibility** (semantic HTML, ARIA, keyboard
-navigation, focus management, colour contrast considerations, `prefers-reduced-motion`).
-
-Findings are labelled `[CRITICAL]` / `[WARNING]` / `[INFO]` with a concrete suggested fix for each.
-
 ---
 
-### `qa` — test coverage
+### `qa`
+
+Analyse test coverage and write or improve tests.
+
+Reads existing test patterns and fixtures first, then writes tests that cover edge cases,
+error paths, and boundary conditions rather than just happy paths.
 
 ```bash
 tech-team qa                       # analyse coverage across the repo
 tech-team qa src/payments/         # focus on a specific module
 ```
 
-Reads existing test patterns and fixtures first, then writes tests that cover edge cases,
-error paths, and boundary conditions — not just happy paths.
-
 ---
 
-### `plan` — architecture planning
+### `plan`
+
+Architecture planning before any code is written.
+
+Returns a structured plan: files to change/create, implementation steps, risks, open questions.
+Writes ADRs to `docs/adr/` for significant decisions. Use this before `dev` on anything large,
+or use `dev --plan` to chain them automatically.
 
 ```bash
 tech-team plan "migrate from REST to GraphQL for the user service"
 tech-team plan "add multi-tenancy to the billing module"
 ```
 
-Returns a structured plan: files to change/create, implementation steps, risks, open questions.
-Writes ADRs to `docs/adr/` for significant decisions. Use this before `dev` on anything large,
-or use `dev --plan` to chain them automatically.
-
 ---
 
-### `audit` — security audit
+### `audit`
+
+Security audit: OWASP Top 10, hardcoded secrets, injection vectors, missing auth, weak crypto.
+
+Findings are labelled `[CRITICAL]` / `[HIGH]` / `[MEDIUM]` / `[LOW]`.
 
 ```bash
 tech-team audit                    # audit working tree changes
@@ -227,12 +236,9 @@ tech-team audit --staged           # audit staged changes
 tech-team audit src/api/           # audit a specific path
 ```
 
-Checks OWASP Top 10, hardcoded secrets, injection vectors, missing auth, weak crypto, and more.
-Findings are labelled `[CRITICAL]` / `[HIGH]` / `[MEDIUM]` / `[LOW]`.
-
 ---
 
-### `check` — all analysis agents on recent changes
+### `check`
 
 The most useful day-to-day command. Runs Reviewer + QA + Architect + Security against your
 unpushed commits before you push.
@@ -244,7 +250,7 @@ tech-team check --full             # analyse the entire repo
 ```
 
 Scope resolution when no `--base` is given:
-1. `git diff <remote-tracking>..HEAD` — commits not yet pushed
+1. `git diff <remote-tracking>..HEAD` (commits not yet pushed)
 2. Falls back to `git diff HEAD~1..HEAD` if no tracking branch exists
 
 Skip individual agents or save a report:
@@ -257,7 +263,7 @@ tech-team check --full --no-arch           # whole repo, skip architect
 
 ---
 
-### `collab` — iterative loop with confirmation
+### `collab`
 
 Agents iterate on each other's output until all are satisfied, then you see the full diff
 and confirm before anything is kept.
@@ -271,22 +277,22 @@ tech-team collab "add rate limiting" --no-plan --no-audit
 **Flow:**
 
 ```
-1. Architect plans  →  you approve the plan
-   ↑ zero files written yet — safe to bail here
+1. Architect plans, you approve the plan
+   (zero files written yet, safe to bail here)
 
 2. Developer implements
 
 3. Reviewer + QA + Security analyse
-   → findings labelled [CRITICAL] / [WARNING]
+   findings labelled [CRITICAL] / [WARNING]
 
-4. If issues found  →  Developer fixes  →  back to step 3
+4. If issues found: Developer fixes, back to step 3
    Repeats up to --max-rounds (default: 5)
 
-5. All agents satisfied  →  full diff shown
+5. All agents satisfied, full diff shown
 
 6. "Apply these changes? [y/N]"
-   Yes → changes stay in working tree, commit normally
-   No  → git reverts everything cleanly
+   Yes: changes stay in working tree, commit normally
+   No:  git reverts everything cleanly
 ```
 
 | Flag | Default | Effect |
@@ -298,7 +304,7 @@ tech-team collab "add rate limiting" --no-plan --no-audit
 
 ---
 
-### `fix` — review staged changes and optionally auto-fix
+### `fix`
 
 The interactive companion to the pre-commit hook. Run it before committing to catch issues
 and, if any are found, let the developer agent fix them for you.
@@ -311,11 +317,11 @@ git commit
 
 Flow:
 1. Reviewer and Security analyse your staged changes
-2. If clean → "ready to commit"
-3. If issues found → shows findings, asks "Run developer to fix these?"
-4. Yes → developer fixes on top of your staged work, shows diff
-5. "Apply fixes and re-stage? [y/N]" → yes re-stages, no reverts the agent's changes
-6. Your original staged work is never touched — only the agent's additional fixes are reverted if you decline
+2. If clean, "ready to commit"
+3. If issues found, shows findings and asks "Run developer to fix these?"
+4. Yes: developer fixes on top of your staged work, shows diff
+5. "Apply fixes and re-stage? [y/N]": yes re-stages, no reverts the agent's changes
+6. Your original staged work is never touched
 
 ```bash
 tech-team fix --no-audit    # skip security, review only
@@ -323,9 +329,25 @@ tech-team fix --no-audit    # skip security, review only
 
 ---
 
-### `run` — fire-and-forget pipeline
+### `commit`
 
-Chains all agents without pausing for confirmation. Writes `tech-team-report.md` at the end.
+Generate a conventional commit message for staged changes and commit.
+
+```bash
+git add src/auth.py tests/test_auth.py
+tech-team commit               # generate message, confirm, commit
+tech-team commit --dry-run     # preview message only
+```
+
+Produces messages in the format `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`, `style:`, `perf:`.
+You can accept the suggestion, edit it, or reject it.
+
+---
+
+### `run`
+
+Fire-and-forget pipeline: chains all agents without pausing for confirmation and writes
+`tech-team-report.md` at the end.
 
 ```bash
 tech-team run "JIRA-123: add password reset flow"
@@ -350,14 +372,14 @@ tech-team collab "add dark mode" --repo ~/projects/frontend
 
 ## Pre-commit hooks
 
-### Global hook — runs on every repo on this machine
+### Global hook (runs on every repo on this machine)
 
 ```bash
 tech-team install-global-hook
 ```
 
 Sets `git config --global core.hooksPath` and installs a hook that runs Reviewer + Security
-on every commit across all your repos. Uses the full binary path — no venv activation needed.
+on every commit across all your repos. Uses the full binary path so no venv activation needed.
 
 ```bash
 git commit --no-verify          # bypass for one commit
@@ -388,7 +410,7 @@ tech-team install-mcp
 # then restart Claude Code
 ```
 
-Available tools in Claude Code after registration:
+Available tools after registration:
 
 | Tool | What it does |
 |---|---|
@@ -399,7 +421,7 @@ Available tools in Claude Code after registration:
 | `security` | Security audit |
 | `check` | All analysis agents on recent changes or full repo |
 
-Example usage in Claude Code conversation:
+Example in a Claude Code conversation:
 > "Use the architect tool to plan adding a Redis cache layer to my FastAPI app, then use the
 > developer tool to implement it"
 
@@ -434,10 +456,10 @@ Each agent is a Claude API call with:
 - A specialist system prompt defining role, priorities, and output format
 - Tools: `read_file`, `write_file`, `patch_file`, `list_directory`, `search_code`,
   `get_git_diff`, `get_git_log`, `run_shell`
-- An agentic loop — tool calls are executed and fed back until the agent is done
+- An agentic loop where tool calls are executed and fed back until the agent is done
 
-Output streams in real time. Tool calls are shown inline (`tool: read_file(path='...')`)
-so you can see exactly what the agent is reading and writing.
+Output streams in real time. Tool calls are shown inline so you can see exactly what the
+agent is reading and writing.
 
 **Project context** is gathered automatically before each run: README or CLAUDE.md (first
 3000 chars), detected tech stack, top-level directory structure, current branch, and recent
@@ -452,7 +474,7 @@ multi-turn tool-use loops that make up each agent run.
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `ANTHROPIC_API_KEY` | yes | — | Anthropic API key |
+| `ANTHROPIC_API_KEY` | yes | | Anthropic API key |
 | `TECH_TEAM_MODEL` | no | `claude-sonnet-4-6` | Model for all agents |
 | `TECH_TEAM_MAX_TOKENS` | no | `8192` | Max tokens per response |
 | `TECH_TEAM_TIMEOUT` | no | `120` | Shell command timeout (seconds) |
@@ -468,7 +490,7 @@ Shell commands are filtered through a blocklist before execution. Permanently bl
 - `sudo`
 - `curl | sh`, `wget | bash`, `dd if=`
 
-All file operations are path-traversal guarded — agents cannot read or write outside the
+All file operations are path-traversal guarded so agents cannot read or write outside the
 target repo root.
 
 **Write permissions by agent:**
