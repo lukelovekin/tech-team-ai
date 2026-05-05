@@ -1,0 +1,51 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+pip-wheel-metadata/
+
+# Type checking / linting
+.mypy_cache/
+.ruff_cache/
+.pytype/
+
+# Testing
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# tech-team output files
+tech-team-report.md
+
+# Claude Code
+.claude/settings.local.json
+
+# Opt-out file for global tech-team pre-commit hook
+# Present in this repo since you run the tool directly here, not via the hook
+.no-tech-team

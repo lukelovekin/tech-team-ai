@@ -1,0 +1,42 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tech-team-ai"
+version = "0.1.0"
+description = "AI software team — specialist Claude agents for code development, review, QA, architecture, and security"
+requires-python = ">=3.11"
+dependencies = [
+    "anthropic>=0.40.0",
+    "fastmcp>=2.0.0",
+    "typer[all]>=0.12.0",
+    "rich>=13.0.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+]
+
+[project.scripts]
+tech-team = "src.cli:app"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-mock>=3.12.0",
+    "ruff>=0.4.0",
+    "mypy>=1.8.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+strict = true
+python_version = "3.11"
