@@ -62,6 +62,8 @@ def run_pipeline(
             f"Plan the implementation of the following task:\n\n{task}",
             extra_context=project_context,
         )
+        # Re-gather now that architect has written briefing/context.md.
+        project_context = context.gather(repo_path)
 
     # 2. Developer: implement
     _header("Developer — implementing")

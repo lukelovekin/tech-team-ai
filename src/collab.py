@@ -73,6 +73,9 @@ def run_collab(
             f"Plan the implementation of: {task}",
             extra_context=project_ctx,
         )
+        # Re-gather now that architect has written briefing/context.md —
+        # all subsequent agents get the structured handoff automatically.
+        project_ctx = context.gather(repo_path)
         console.print()
         if not typer.confirm("Proceed with implementation?", default=True):
             console.print("[dim]Aborted — no files changed.[/dim]")
