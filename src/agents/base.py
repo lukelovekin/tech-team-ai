@@ -4,7 +4,10 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
 
+import time
+
 import anthropic
+import httpx
 from rich.console import Console
 from rich.markup import escape
 
@@ -80,7 +83,7 @@ class BaseAgent(ABC):
     ) -> tuple[str, str, list[dict[str, Any]]]:
         """
         Send messages to Claude. Returns (text, stop_reason, tool_calls).
-        Streams text output if stream=True.
+        Streams text output if stream=True. Retries on dropped connections.
         """
         system = [
             {
@@ -90,6 +93,22 @@ class BaseAgent(ABC):
             }
         ]
 
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                return self._call_once(messages, stream, system)
+            except httpx.RemoteProtocolError as e:
+                if attempt == max_retries - 1:
+                    raise
+                wait = 2 ** attempt
+                console.print(f"\n[yellow]Connection dropped, retrying in {wait}s... ({e})[/yellow]")
+                time.sleep(wait)
+
+        raise RuntimeError("unreachable")
+
+    def _call_once(
+        self, messages: list[dict[str, Any]], stream: bool, system: list[dict[str, Any]]
+    ) -> tuple[str, str, list[dict[str, Any]]]:
         collected_text = ""
         tool_calls: list[dict[str, Any]] = []
         stop_reason = "end_turn"
