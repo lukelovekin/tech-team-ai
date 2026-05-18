@@ -1,8 +1,9 @@
 """Tests for agent infrastructure — no real API calls."""
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
+import httpx
 import pytest
 
 from src.config import Settings
@@ -129,6 +130,19 @@ class TestUnknownTool:
         assert "Unknown tool" in result
 
 
+class TestBadArguments:
+    def test_wrong_args_return_error_not_crash(self, executor: ToolExecutor) -> None:
+        # Model sends write_file without the required 'content' argument.
+        result = executor.execute("write_file", {"path": "x.py"})
+        assert "Error" in result
+        assert "write_file" in result
+
+    def test_wrong_arg_name_returns_error(self, executor: ToolExecutor) -> None:
+        # Model sends 'contents' instead of 'content'.
+        result = executor.execute("write_file", {"path": "x.py", "contents": "hello"})
+        assert "Error" in result
+
+
 # ---------------------------------------------------------------------------
 # Agent base — mock the Anthropic client
 # ---------------------------------------------------------------------------
@@ -165,6 +179,76 @@ class TestBaseAgentLoop:
             result = agent.run("do something", stream=False)
 
         assert result == "Done!"
+
+    def test_retries_on_dropped_connection(self, settings: Settings, repo: Path) -> None:
+        from src.agents.developer import DeveloperAgent
+
+        agent = DeveloperAgent(settings, repo)
+        good_response = _mock_text_response("Done after retry.")
+
+        call_count = 0
+
+        def flaky(**_):  # type: ignore[no-untyped-def]
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise httpx.RemoteProtocolError("peer closed connection", request=MagicMock())
+            return good_response
+
+        with patch.object(agent.client.messages, "create", side_effect=flaky):
+            result = agent.run("do something", stream=False)
+
+        assert result == "Done after retry."
+        assert call_count == 2
+
+    def test_raises_after_max_retries(self, settings: Settings, repo: Path) -> None:
+        from src.agents.developer import DeveloperAgent
+
+        agent = DeveloperAgent(settings, repo)
+
+        def always_drops(**_):  # type: ignore[no-untyped-def]
+            raise httpx.RemoteProtocolError("peer closed connection", request=MagicMock())
+
+        with patch.object(agent.client.messages, "create", side_effect=always_drops):
+            with pytest.raises(httpx.RemoteProtocolError):
+                agent.run("do something", stream=False)
+
+# ---------------------------------------------------------------------------
+# Collab helpers
+# ---------------------------------------------------------------------------
+
+
+class TestWriteBrief:
+    def test_writes_brief_file(self, repo: Path) -> None:
+        from src.collab import _write_brief
+
+        _write_brief(repo, "build a todo app", "the plan", "review findings", "qa findings", "audit findings")
+
+        brief = (repo / "briefing" / "brief.md").read_text()
+        assert "build a todo app" in brief
+        assert "the plan" in brief
+        assert "review findings" in brief
+        assert "qa findings" in brief
+        assert "audit findings" in brief
+
+    def test_omits_empty_sections(self, repo: Path) -> None:
+        from src.collab import _write_brief
+
+        _write_brief(repo, "build a todo app", "", "review findings", "", "")
+
+        brief = (repo / "briefing" / "brief.md").read_text()
+        assert "Architecture plan" not in brief
+        assert "QA" not in brief
+        assert "Security" not in brief
+        assert "review findings" in brief
+
+    def test_creates_briefing_directory(self, tmp_path: Path) -> None:
+        from src.collab import _write_brief
+
+        assert not (tmp_path / "briefing").exists()
+        _write_brief(tmp_path, "task", "plan", "", "", "")
+        assert (tmp_path / "briefing" / "brief.md").exists()
+
 
     def test_executes_tool_and_continues(self, settings: Settings, repo: Path) -> None:
         from src.agents.developer import DeveloperAgent
