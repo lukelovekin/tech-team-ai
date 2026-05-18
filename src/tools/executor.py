@@ -33,25 +33,28 @@ class ToolExecutor:
         self.timeout = timeout
 
     def execute(self, tool_name: str, tool_input: dict) -> str:  # type: ignore[type-arg]
-        match tool_name:
-            case "read_file":
-                return self._read_file(**tool_input)
-            case "list_directory":
-                return self._list_directory(**tool_input)
-            case "search_code":
-                return self._search_code(**tool_input)
-            case "get_git_diff":
-                return self._get_git_diff(**tool_input)
-            case "get_git_log":
-                return self._get_git_log(**tool_input)
-            case "run_shell":
-                return self._run_shell(**tool_input)
-            case "write_file":
-                return self._write_file(**tool_input)
-            case "patch_file":
-                return self._patch_file(**tool_input)
-            case _:
-                return f"Unknown tool: {tool_name}"
+        try:
+            match tool_name:
+                case "read_file":
+                    return self._read_file(**tool_input)
+                case "list_directory":
+                    return self._list_directory(**tool_input)
+                case "search_code":
+                    return self._search_code(**tool_input)
+                case "get_git_diff":
+                    return self._get_git_diff(**tool_input)
+                case "get_git_log":
+                    return self._get_git_log(**tool_input)
+                case "run_shell":
+                    return self._run_shell(**tool_input)
+                case "write_file":
+                    return self._write_file(**tool_input)
+                case "patch_file":
+                    return self._patch_file(**tool_input)
+                case _:
+                    return f"Unknown tool: {tool_name}"
+        except TypeError as e:
+            return f"Error: wrong arguments for {tool_name} — {e}"
 
     # --- read-only tools ---
 
