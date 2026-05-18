@@ -7,8 +7,7 @@ git clone https://github.com/lukelovekin/tech-team-ai
 cd tech-team-ai
 python3.12 -m venv venv && source venv/bin/activate
 pip install -e ".[dev]"
-cp .env.example .env
-# add ANTHROPIC_API_KEY to .env or run: tech-team setup
+tech-team setup    # saves API key to ~/.config/tech-team/config
 ```
 
 ## Running tests
@@ -23,9 +22,10 @@ Tests mock the Anthropic client — no real API calls, no cost.
 
 1. Create `src/agents/your_agent.py`, subclass `BaseAgent`
 2. Define `SYSTEM_PROMPT`, `TOOLS` (from `src/tools/registry.py`), `ALLOW_WRITES`
-3. Add a command to `src/cli.py`
-4. Add to `src/orchestrator.py` if it belongs in the pipeline
-5. Write tests in `tests/test_agents.py`
+3. If it's an analysis agent (read-only), pass `model=settings.analysis_model` when instantiating it — this uses Haiku instead of Sonnet
+4. Add a command to `src/cli.py`
+5. Add to `src/orchestrator.py` and/or `src/collab.py` if it belongs in the pipeline
+6. Write tests in `tests/test_agents.py`
 
 ```python
 from src.agents.base import BaseAgent

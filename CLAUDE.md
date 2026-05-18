@@ -19,13 +19,15 @@ git in the target repository (defaulting to the current working directory).
 ## Repo layout
 
 ```
-src/tech_team/
+src/
   cli.py             # Typer app, all CLI commands
-  config.py          # Settings (pydantic-settings, .env)
-  orchestrator.py    # Full pipeline: plan → dev → review → qa → audit
+  config.py          # Settings (pydantic-settings, global config)
+  orchestrator.py    # Fire-and-forget pipeline: plan → dev → review/qa/security (parallel)
+  collab.py          # Interactive loop: architect → dev → analysis → confirm
   context.py         # Reads target repo to build project context for agents
+  mcp_server.py      # MCP server (stdio) for Claude Code integration
   agents/
-    base.py          # BaseAgent: tool-use loop, streaming, prompt caching
+    base.py          # BaseAgent: tool-use loop, streaming, retry, prompt caching
     developer.py     # Implements features and fixes
     reviewer.py      # Code quality, patterns, regression risk
     qa.py            # Test coverage and quality
@@ -36,8 +38,6 @@ src/tech_team/
     executor.py      # Tool dispatch and execution with safety guards
 tests/
   test_agents.py
-hooks/
-  pre-commit.example # Drop into .git/hooks/pre-commit of any repo
 ```
 
 ## Running locally
@@ -53,10 +53,13 @@ tech-team --help
 
 - Agents are stateless per invocation — no shared memory between calls
 - `BaseAgent.run()` owns the agentic loop; subclasses define `SYSTEM_PROMPT`, `TOOLS`, `ALLOW_WRITES`
+- `BaseAgent.__init__` accepts `model: str | None` — pass `settings.analysis_model` for analysis agents
 - Tool execution lives entirely in `tools/executor.py` — agents never call subprocess directly
 - Dangerous shell commands (rm -rf, git push, git reset --hard, sudo) are blocked at executor level
 - All output goes through Rich — use `console.print()`, never bare `print()`
 - Prompt caching: system prompts use `cache_control: {"type": "ephemeral"}`
+- Reviewer, QA, Security run in parallel via `ThreadPoolExecutor` in both `collab.py` and `orchestrator.py`
+- In `collab` mode, QA and Security only run when the reviewer is satisfied or `max_rounds` is reached
 
 ## Adding a new agent
 
@@ -70,9 +73,12 @@ tech-team --help
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `ANTHROPIC_API_KEY` | yes | — | Anthropic API key |
-| `TECH_TEAM_MODEL` | no | `claude-sonnet-4-6` | Model for all agents |
+| `TECH_TEAM_MODEL` | no | `claude-sonnet-4-6` | Model for Developer and Architect agents |
+| `TECH_TEAM_ANALYSIS_MODEL` | no | `claude-haiku-4-5-20251001` | Model for Reviewer, QA, and Security agents |
 | `TECH_TEAM_MAX_TOKENS` | no | `8192` | Max tokens per response |
-| `TECH_TEAM_TIMEOUT` | no | `120` | Shell command timeout (seconds) |
+| `TECH_TEAM_SHELL_TIMEOUT` | no | `120` | Shell command timeout (seconds) |
+
+Stored in `~/.config/tech-team/config` (created by `tech-team setup`) or local `.env`.
 
 ## Tests
 

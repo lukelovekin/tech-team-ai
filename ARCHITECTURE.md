@@ -48,29 +48,57 @@ agent.run(task, extra_context)
 
 All agents use the same shell blocklist regardless of permissions.
 
-## Pipeline mode
+## Pipeline mode (`tech-team run`)
 
-`tech-team run` chains agents sequentially, passing each agent's output as context to the next:
+Fire-and-forget: chains agents, no confirmation prompts.
 
 ```
-Architect output → Developer input (as plan)
-Developer output → Reviewer input (as implementation summary)
-Developer output → QA input
-Developer output → Security input
-All outputs      → tech-team-report.md
+Architect → Developer → ┬─ Reviewer  ─┐
+                        ├─ QA         ─┤ parallel (ThreadPoolExecutor)
+                        └─ Security   ─┘
+                                       └─ briefing/brief.md
 ```
 
-Agents share `project_context` (gathered once before the pipeline starts) but do not share
-message history — each agent starts fresh.
+Reviewer, QA, and Security run in parallel using `ThreadPoolExecutor(max_workers=3)` with
+`stream=False`. Results are printed sequentially after all three complete.
+Agents share `project_context` but not message history — each starts fresh.
+
+## Collab mode (`tech-team collab`)
+
+Interactive loop with user confirmation at start and end.
+
+```
+Architect → [user confirms plan]
+              │
+              └─ loop (max_rounds, default 2):
+                   Developer
+                   Reviewer  (streaming, always)
+                   if reviewer clean OR last round:
+                     QA + Security (parallel, no stream)
+                   if all clean → break
+              │
+              └─ [user confirms diff] → apply or revert
+```
+
+QA and Security are skipped on intermediate rounds where the reviewer still finds issues —
+they only run when the code is worth a full analysis pass. This saves significant time and
+cost on builds that need multiple developer iterations.
+
+Unresolved findings at the round limit are printed on screen and written to `briefing/brief.md`.
 
 ## Project context
 
 `context.py` gathers a lightweight project snapshot before each agent run:
 
-1. CLAUDE.md or README.md (first 3000 chars)
-2. Detected tech stack (pyproject.toml, package.json, go.mod, etc.)
-3. Top-level directory listing
-4. Current git branch + 5 most recent commits
+1. `briefing/context.md` if present — structured handoff written by the Architect agent
+2. Otherwise: CLAUDE.md or README.md (first 3000 chars) + entry point file contents
+3. Detected tech stack (pyproject.toml, package.json, go.mod, etc.)
+4. Top-level directory listing
+5. Current git branch + 5 most recent commits
+
+In `collab` mode the Architect writes `briefing/context.md` before the developer starts.
+`context.gather()` is called again after the Architect runs, so all subsequent agents
+receive the structured handoff instead of re-exploring the codebase from scratch.
 
 This is injected as a prefix to the user's task. It costs tokens but prevents agents from
 exploring blindly and dramatically improves first-tool-call accuracy.
@@ -97,11 +125,13 @@ latency on multi-turn conversations (tool-use loops) where the system prompt is 
 
 | File | Purpose |
 |---|---|
-| `agents/base.py` | Agentic loop, streaming, tool dispatch |
+| `agents/base.py` | Agentic loop, streaming, retry on dropped connections, prompt caching |
 | `agents/*.py` | System prompts and tool permissions per agent |
 | `tools/registry.py` | Tool schema definitions (Anthropic format) |
 | `tools/executor.py` | Tool execution, safety guards, subprocess calls |
-| `context.py` | Project context gathering |
-| `orchestrator.py` | Pipeline mode, inter-agent context passing |
-| `cli.py` | Typer CLI, command definitions, hook installation |
-| `config.py` | Pydantic Settings, repo root detection |
+| `context.py` | Project context gathering, `briefing/context.md` handoff |
+| `collab.py` | Interactive loop, parallel analysis, round-cap logic, brief writing |
+| `orchestrator.py` | Fire-and-forget pipeline, parallel analysis |
+| `mcp_server.py` | MCP stdio server for Claude Code integration |
+| `cli.py` | Typer CLI, all commands, hook installation, setup/doctor/init |
+| `config.py` | Pydantic Settings, global config (`~/.config/tech-team/config`) |
