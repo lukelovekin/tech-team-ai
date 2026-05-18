@@ -199,7 +199,12 @@ To use it from any repo without manually activating first, add this to your shel
 
 ```bash
 source ~/tech-team-ai/venv/bin/activate
+export ANTHROPIC_API_KEY="$(grep ANTHROPIC_API_KEY ~/tech-team-ai/.env | cut -d= -f2)"
 ```
+
+The `export` line reads the key from your `.env` file so it's available in every terminal
+session regardless of which directory you run `tech-team` from. Without it, the key is only
+found when running from the `tech-team-ai` directory itself.
 
 Then try it on any repo you have locally:
 
