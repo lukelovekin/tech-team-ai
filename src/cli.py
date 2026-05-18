@@ -336,6 +336,7 @@ def collab(
     no_plan: Annotated[bool, typer.Option("--no-plan", help="Skip architect planning phase.")] = False,
     no_qa: Annotated[bool, typer.Option("--no-qa", help="Skip QA agent.")] = False,
     no_audit: Annotated[bool, typer.Option("--no-audit", help="Skip security audit.")] = False,
+    init: Annotated[bool, typer.Option("--init", help="git init the repo path if it has no .git directory.")] = False,
 ) -> None:
     """
     Collaborative loop: agents iterate until all satisfied, then you confirm.
@@ -360,9 +361,17 @@ def collab(
       tech-team collab "add OAuth login"
       tech-team collab "refactor user service" --no-plan --max-rounds 3
       tech-team collab "add rate limiting" --no-audit
+      tech-team collab "build a todo API" --repo ~/new-project --init
     """
+    import subprocess as sp
+
     repo_path = _resolve_repo(repo)
     settings = _load_settings()
+
+    if init and not (repo_path / ".git").exists():
+        repo_path.mkdir(parents=True, exist_ok=True)
+        sp.run(["git", "init"], cwd=repo_path, check=True)
+        console.print(f"[green]Initialised git repo at {repo_path}[/green]\n")
 
     console.print(Rule("[bold cyan]tech-team / collab[/bold cyan]", style="cyan"))
     console.print(f"[dim]repo:  {repo_path}[/dim]")
