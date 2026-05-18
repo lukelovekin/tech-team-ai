@@ -213,6 +213,49 @@ class TestBaseAgentLoop:
             with pytest.raises(httpx.RemoteProtocolError):
                 agent.run("do something", stream=False)
 
+    def test_retries_on_500_server_error(self, settings: Settings, repo: Path) -> None:
+        import anthropic as ant
+        from src.agents.developer import DeveloperAgent
+
+        agent = DeveloperAgent(settings, repo)
+        good_response = _mock_text_response("Recovered from 500.")
+
+        call_count = 0
+
+        def flaky(**_):  # type: ignore[no-untyped-def]
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise ant.APIStatusError(
+                    "Internal server error",
+                    response=MagicMock(status_code=500),
+                    body={"type": "error"},
+                )
+            return good_response
+
+        with patch.object(agent.client.messages, "create", side_effect=flaky):
+            result = agent.run("do something", stream=False)
+
+        assert result == "Recovered from 500."
+        assert call_count == 2
+
+    def test_does_not_retry_on_4xx_error(self, settings: Settings, repo: Path) -> None:
+        import anthropic as ant
+        from src.agents.developer import DeveloperAgent
+
+        agent = DeveloperAgent(settings, repo)
+
+        def bad_auth(**_):  # type: ignore[no-untyped-def]
+            raise ant.APIStatusError(
+                "Unauthorized",
+                response=MagicMock(status_code=401),
+                body={"type": "error"},
+            )
+
+        with patch.object(agent.client.messages, "create", side_effect=bad_auth):
+            with pytest.raises(ant.APIStatusError):
+                agent.run("do something", stream=False)
+
     def test_model_override_used_instead_of_settings_model(self, settings: Settings, repo: Path) -> None:
         from src.agents.reviewer import ReviewerAgent
 

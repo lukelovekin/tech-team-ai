@@ -104,6 +104,12 @@ class BaseAgent(ABC):
                 wait = 2 ** attempt
                 console.print(f"\n[yellow]Connection dropped, retrying in {wait}s... ({e})[/yellow]")
                 time.sleep(wait)
+            except anthropic.APIStatusError as e:
+                if attempt == max_retries - 1 or e.status_code < 500:
+                    raise
+                wait = 2 ** attempt
+                console.print(f"\n[yellow]API error {e.status_code}, retrying in {wait}s...[/yellow]")
+                time.sleep(wait)
 
         raise RuntimeError("unreachable")
 
