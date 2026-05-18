@@ -5,8 +5,21 @@ build-backend = "hatchling.build"
 [project]
 name = "tech-team-ai"
 version = "0.1.0"
-description = "AI software team — specialist Claude agents for code development, review, QA, architecture, and security"
+description = "AI software team — specialist Claude agents for code review, implementation, QA, architecture, and security"
+readme = "README.md"
+license = { text = "MIT" }
 requires-python = ">=3.11"
+keywords = ["ai", "claude", "code-review", "developer-tools", "anthropic", "agents"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 dependencies = [
     "anthropic>=0.40.0",
     "fastmcp>=2.0.0",
@@ -15,6 +28,11 @@ dependencies = [
     "pydantic>=2.0.0",
     "pydantic-settings>=2.0.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/lukelovekin/tech-team-ai"
+Repository = "https://github.com/lukelovekin/tech-team-ai"
+Issues = "https://github.com/lukelovekin/tech-team-ai/issues"
 
 [project.scripts]
 tech-team = "src.cli:app"
@@ -25,6 +43,8 @@ dev = [
     "pytest-mock>=3.12.0",
     "ruff>=0.4.0",
     "mypy>=1.8.0",
+    "build>=1.0.0",
+    "twine>=5.0.0",
 ]
 
 [tool.hatch.build.targets.wheel]

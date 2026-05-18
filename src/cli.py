@@ -104,6 +104,157 @@ def setup() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Doctor
+# ---------------------------------------------------------------------------
+
+
+@app.command()
+def doctor() -> None:
+    """Check your setup — Python version, API key, git, and dependencies."""
+    import subprocess as sp
+    import sys
+    import anthropic as ant
+
+    console.print()
+    console.print(Rule("[bold cyan]tech-team doctor[/bold cyan]", style="cyan"))
+    console.print()
+
+    ok = True
+
+    def check(label: str, passed: bool, detail: str = "") -> None:
+        nonlocal ok
+        icon = "[green]✓[/green]" if passed else "[red]✗[/red]"
+        line = f"  {icon}  {label}"
+        if detail:
+            line += f"  [dim]{detail}[/dim]"
+        console.print(line)
+        if not passed:
+            ok = False
+
+    # Python version
+    major, minor = sys.version_info[:2]
+    check(
+        f"Python {major}.{minor}",
+        major == 3 and minor >= 11,
+        "" if minor >= 11 else "Python 3.11+ required — run: brew install python@3.12",
+    )
+
+    # Git
+    git_result = sp.run(["git", "--version"], capture_output=True, text=True)
+    check("git", git_result.returncode == 0, git_result.stdout.strip())
+
+    # API key present
+    api_key = read_global_key()
+    if not api_key:
+        import os
+        api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    key_present = bool(api_key)
+    check(
+        "API key configured",
+        key_present,
+        "run: tech-team setup" if not key_present else f"{api_key[:8]}...{api_key[-4:]}",
+    )
+
+    # API key valid (live check)
+    if key_present:
+        try:
+            client = ant.Anthropic(api_key=api_key)
+            client.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=1,
+                messages=[{"role": "user", "content": "hi"}],
+            )
+            check("API key valid", True, "connection successful")
+        except ant.AuthenticationError:
+            check("API key valid", False, "key rejected — check console.anthropic.com")
+        except ant.APIError as e:
+            check("API key valid", False, f"API error: {e}")
+
+    console.print()
+    if ok:
+        console.print("[bold green]Everything looks good.[/bold green]")
+    else:
+        console.print("[yellow]Fix the issues above, then re-run tech-team doctor.[/yellow]")
+    console.print()
+
+
+# ---------------------------------------------------------------------------
+# Init
+# ---------------------------------------------------------------------------
+
+
+_INIT_SYSTEM_PROMPT = """\
+You are a technical writer generating a CLAUDE.md file for a software project.
+CLAUDE.md is read by AI coding agents to understand a codebase before they touch it.
+A great CLAUDE.md is concise, factual, and tells an agent exactly what it needs to know
+to write code that fits the existing patterns — without reading every file first.
+
+Output only the raw Markdown content of CLAUDE.md. No explanation, no code fences around
+the whole thing, no preamble. Start with # <project name>.
+"""
+
+
+@app.command()
+def init(
+    repo: RepoOption = Path("."),
+) -> None:
+    """Generate a CLAUDE.md for any repo so agents start with full context.
+
+    \b
+    Reads your project structure, stack, and key files, then writes a
+    CLAUDE.md that tells agents how your codebase works before they touch it.
+    Saves re-exploration time on every agent run.
+
+    \b
+    Examples:
+      tech-team init                     # current directory
+      tech-team init --repo ~/my-project
+    """
+    import anthropic as ant
+
+    repo_path = _resolve_repo(repo)
+    settings = _load_settings()
+
+    claude_md = repo_path / "CLAUDE.md"
+    if claude_md.exists():
+        console.print(f"[yellow]CLAUDE.md already exists at {claude_md}[/yellow]")
+        if not typer.confirm("Overwrite?", default=False):
+            console.print("[dim]Aborted.[/dim]")
+            raise typer.Exit(0)
+
+    _banner("Init", repo_path)
+    console.print("[dim]Reading project structure...[/dim]")
+
+    project_ctx = context.gather(repo_path)
+
+    console.print("[dim]Generating CLAUDE.md...[/dim]\n")
+
+    client = ant.Anthropic(api_key=settings.anthropic_api_key)
+    with client.messages.stream(
+        model=settings.model,
+        max_tokens=2048,
+        system=_INIT_SYSTEM_PROMPT,
+        messages=[{
+            "role": "user",
+            "content": (
+                f"Generate a CLAUDE.md for this project.\n\n{project_ctx}\n\n"
+                "Cover: what the project is, the tech stack, repo layout, key conventions, "
+                "how to run it locally, and anything an AI agent must know before editing code."
+            ),
+        }],
+    ) as s:
+        content = ""
+        for text in s.text_stream:
+            console.print(text, end="")
+            content += text
+        console.print()
+
+    claude_md.write_text(content, encoding="utf-8")
+    console.print(f"\n[green]Written: {claude_md}[/green]")
+    console.print("[dim]Commit this file so agents are pre-oriented on every run.[/dim]")
+
+
+# ---------------------------------------------------------------------------
 # Individual agent commands
 # ---------------------------------------------------------------------------
 
