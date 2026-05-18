@@ -42,7 +42,7 @@ def run_collab(
     task: str,
     settings: Settings,
     repo_path: Path,
-    max_rounds: int = 5,
+    max_rounds: int = 2,
     skip_plan: bool = False,
     skip_qa: bool = False,
     skip_audit: bool = False,
@@ -188,7 +188,12 @@ def run_collab(
         console.print(f"Round {round_num} complete — {', '.join(summary_parts)} found.")
 
         if round_num == max_rounds:
-            console.print(f"[yellow]Max rounds ({max_rounds}) reached.[/yellow]")
+            console.print()
+            console.print(f"[bold yellow]Round limit reached ({max_rounds}).[/bold yellow]")
+            console.print("[dim]Remaining findings will be saved to briefing/brief.md.[/dim]")
+            console.print(f"[dim]To iterate further: tech-team collab \"...\" --max-rounds {max_rounds + 1}[/dim]")
+            _print_remaining_findings(round_findings)
+            previous_findings = "\n\n".join(round_findings)
             break
 
         previous_findings = "\n\n".join(round_findings)
@@ -203,7 +208,7 @@ def run_collab(
     console.print()
 
     if typer.confirm("Apply these changes?", default=True):
-        _write_brief(repo_path, task, plan, last_review, last_qa_out, last_audit_out)
+        _write_brief(repo_path, task, plan, last_review, last_qa_out, last_audit_out, previous_findings)
         console.print("[green]Changes applied. Review and commit when ready.[/green]")
         return True
 
@@ -230,6 +235,7 @@ def _write_brief(
     review: str,
     qa: str,
     audit: str,
+    remaining_findings: str = "",
 ) -> None:
     sections = [f"# tech-team session brief\n\n**Task:** {task}"]
     if plan:
@@ -240,10 +246,33 @@ def _write_brief(
         sections.append(f"## QA\n\n{qa}")
     if audit:
         sections.append(f"## Security audit\n\n{audit}")
+    if remaining_findings:
+        sections.append(
+            f"## Remaining findings (round limit reached)\n\n"
+            f"These issues were not resolved within the round limit. "
+            f"Re-run with `--max-rounds` to continue iterating.\n\n{remaining_findings}"
+        )
     brief_path = repo_path / "briefing" / "brief.md"
     brief_path.parent.mkdir(exist_ok=True)
     brief_path.write_text("\n\n---\n\n".join(sections), encoding="utf-8")
     console.print(f"[dim]Session brief written to {brief_path}[/dim]")
+
+
+def _print_remaining_findings(round_findings: list[str]) -> None:
+    if not round_findings:
+        return
+    console.print()
+    console.print(Rule("[bold yellow]Unresolved findings[/bold yellow]", style="yellow"))
+    for section in round_findings:
+        # Strip the ## header and print the body, truncated so it's scannable
+        lines = section.split("\n", 1)
+        header = lines[0].lstrip("#").strip()
+        body = lines[1].strip() if len(lines) > 1 else ""
+        if len(body) > 600:
+            body = body[:600] + "\n[dim]... (see briefing/brief.md for full output)[/dim]"
+        console.print(f"\n[bold]{header}[/bold]")
+        console.print(body)
+    console.print()
 
 
 def show_diff(repo_path: Path, label: str) -> None:

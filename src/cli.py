@@ -534,7 +534,7 @@ def _write_check_report(repo_path: Path, scope: "context.ChangeScope", findings:
 def collab(
     task: Annotated[str, typer.Argument(help="What to implement.")],
     repo: RepoOption = Path("."),
-    max_rounds: Annotated[int, typer.Option("--max-rounds", "-n", help="Maximum review/fix iterations.")] = 5,
+    max_rounds: Annotated[int, typer.Option("--max-rounds", "-n", help="Max dev→review cycles. Default 2 (one build + one revision). Each round costs API credits.")] = 2,
     no_plan: Annotated[bool, typer.Option("--no-plan", help="Skip architect planning phase.")] = False,
     no_qa: Annotated[bool, typer.Option("--no-qa", help="Skip QA agent.")] = False,
     no_audit: Annotated[bool, typer.Option("--no-audit", help="Skip security audit.")] = False,
@@ -576,9 +576,9 @@ def collab(
         console.print(f"[green]Initialised git repo at {repo_path}[/green]\n")
 
     console.print(Rule("[bold cyan]tech-team / collab[/bold cyan]", style="cyan"))
-    console.print(f"[dim]repo:  {repo_path}[/dim]")
-    console.print(f"[dim]task:  {task}[/dim]")
-    console.print(f"[dim]max rounds: {max_rounds}[/dim]\n")
+    console.print(f"[dim]repo:       {repo_path}[/dim]")
+    console.print(f"[dim]task:       {task}[/dim]")
+    console.print(f"[dim]max rounds: {max_rounds}  (each round = developer + reviewer/QA/security)[/dim]\n")
 
     run_collab(
         task=task,
