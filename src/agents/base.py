@@ -23,9 +23,10 @@ class BaseAgent(ABC):
     TOOLS: list[ToolDefinition] = []
     ALLOW_WRITES: bool = False
 
-    def __init__(self, settings: Settings, repo_path: Path) -> None:
+    def __init__(self, settings: Settings, repo_path: Path, model: str | None = None) -> None:
         self.settings = settings
         self.repo_path = repo_path
+        self.model = model or settings.model
         self.client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
         self.executor = ToolExecutor(
             repo_path=repo_path,
@@ -115,7 +116,7 @@ class BaseAgent(ABC):
 
         if stream:
             with self.client.messages.stream(
-                model=self.settings.model,
+                model=self.model,
                 system=system,  # type: ignore[arg-type]
                 messages=messages,  # type: ignore[arg-type]
                 tools=self.TOOLS,  # type: ignore[arg-type]
@@ -129,7 +130,7 @@ class BaseAgent(ABC):
                 console.print()  # newline after streamed output
         else:
             final = self.client.messages.create(
-                model=self.settings.model,
+                model=self.model,
                 system=system,  # type: ignore[arg-type]
                 messages=messages,  # type: ignore[arg-type]
                 tools=self.TOOLS,  # type: ignore[arg-type]

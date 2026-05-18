@@ -3,6 +3,7 @@ Full pipeline orchestrator: plan → dev → review → qa → audit.
 Each agent receives the previous agent's output as context.
 """
 
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from rich.console import Console
@@ -76,33 +77,46 @@ def run_pipeline(
     developer = DeveloperAgent(settings, repo_path)
     result.implementation = developer.run(dev_task, extra_context=project_context)
 
-    # 3. Reviewer: review
-    _header("Reviewer — reviewing changes")
-    reviewer = ReviewerAgent(settings, repo_path)
-    result.review = reviewer.run(
-        f"Review the changes just made for the following task:\n\n{task}\n\n"
-        f"Implementation summary from developer:\n{result.implementation}",
-        extra_context=project_context,
-    )
-
-    # 4. QA: tests
-    if not skip_qa:
-        _header("QA — writing tests")
-        qa = QAAgent(settings, repo_path)
-        result.tests = qa.run(
-            f"Add or improve tests for the changes just made:\n\n{task}\n\n"
-            f"Implementation summary:\n{result.implementation}",
-            extra_context=project_context,
+    # 3–5. Reviewer, QA, Security — run in parallel on Haiku (faster and cheaper).
+    _header("Reviewer + QA + Security — running in parallel")
+    parallel_tasks: dict[str, object] = {}
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        parallel_tasks["review"] = pool.submit(
+            ReviewerAgent(settings, repo_path, model=settings.analysis_model).run,
+            f"Review the changes just made for the following task:\n\n{task}\n\n"
+            f"Implementation summary from developer:\n{result.implementation}",
+            project_context,
+            False,
         )
+        if not skip_qa:
+            parallel_tasks["qa"] = pool.submit(
+                QAAgent(settings, repo_path, model=settings.analysis_model).run,
+                f"Add or improve tests for the changes just made:\n\n{task}\n\n"
+                f"Implementation summary:\n{result.implementation}",
+                project_context,
+                False,
+            )
+        if not skip_audit:
+            parallel_tasks["audit"] = pool.submit(
+                SecurityAgent(settings, repo_path, model=settings.analysis_model).run,
+                f"Audit the changes just made for security issues:\n\n{task}",
+                project_context,
+                False,
+            )
 
-    # 5. Security: audit
-    if not skip_audit:
-        _header("Security — auditing")
-        security = SecurityAgent(settings, repo_path)
-        result.audit = security.run(
-            f"Audit the changes just made for security issues:\n\n{task}",
-            extra_context=project_context,
-        )
+    result.review = parallel_tasks["review"].result()  # type: ignore[union-attr]
+    _header("Reviewer — results")
+    console.print(result.review)
+
+    if "qa" in parallel_tasks:
+        result.tests = parallel_tasks["qa"].result()  # type: ignore[union-attr]
+        _header("QA — results")
+        console.print(result.tests)
+
+    if "audit" in parallel_tasks:
+        result.audit = parallel_tasks["audit"].result()  # type: ignore[union-attr]
+        _header("Security — results")
+        console.print(result.audit)
 
     if write_report:
         report_path = repo_path / "briefing" / "brief.md"

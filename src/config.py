@@ -34,6 +34,7 @@ class Settings(BaseSettings):
 
     anthropic_api_key: str = Field(alias="ANTHROPIC_API_KEY")
     model: str = "claude-sonnet-4-6"
+    analysis_model: str = "claude-haiku-4-5-20251001"  # reviewer, QA, security
     max_tokens: int = 8192
     shell_timeout: int = 120
 

@@ -213,6 +213,14 @@ class TestBaseAgentLoop:
             with pytest.raises(httpx.RemoteProtocolError):
                 agent.run("do something", stream=False)
 
+    def test_model_override_used_instead_of_settings_model(self, settings: Settings, repo: Path) -> None:
+        from src.agents.reviewer import ReviewerAgent
+
+        # Analysis agents pass settings.analysis_model as model override.
+        agent = ReviewerAgent(settings, repo, model=settings.analysis_model)
+        assert agent.model == settings.analysis_model
+        assert agent.model != settings.model
+
 # ---------------------------------------------------------------------------
 # Collab helpers
 # ---------------------------------------------------------------------------

@@ -19,6 +19,7 @@ Flow:
 """
 
 import subprocess
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import typer
@@ -121,8 +122,9 @@ def run_collab(
         round_findings: list[str] = []
         combined = ""
 
+        # Reviewer always runs first, with streaming.
         console.print(Rule("[cyan]Reviewer[/cyan]", style="dim"))
-        review_out = ReviewerAgent(settings, repo_path).run(
+        review_out = ReviewerAgent(settings, repo_path, model=settings.analysis_model).run(
             f"Review changes made for: {task}. Use get_git_diff to see what changed.",
             extra_context=project_ctx,
         )
@@ -130,25 +132,46 @@ def run_collab(
         combined += review_out
         last_review = review_out
 
-        if not skip_qa:
-            console.print(Rule("[cyan]QA[/cyan]", style="dim"))
-            qa_out = QAAgent(settings, repo_path).run(
-                f"Check test coverage for changes made for: {task}",
-                extra_context=project_ctx,
-            )
-            round_findings.append(f"## QA\n{qa_out}")
-            combined += qa_out
-            last_qa_out = qa_out
+        # QA + Security only run when the reviewer is satisfied OR we're at max rounds.
+        # Skipping them on intermediate rounds saves 10–15 min per build.
+        reviewer_clean = count_issues(review_out) == (0, 0)
+        is_last_round = round_num == max_rounds
+        run_full_analysis = reviewer_clean or is_last_round
 
-        if not skip_audit:
-            console.print(Rule("[cyan]Security[/cyan]", style="dim"))
-            audit_out = SecurityAgent(settings, repo_path).run(
-                f"Audit changes made for: {task}. Use get_git_diff to see what changed.",
-                extra_context=project_ctx,
-            )
-            round_findings.append(f"## Security\n{audit_out}")
-            combined += audit_out
-            last_audit_out = audit_out
+        if run_full_analysis:
+            # Run QA and Security in parallel (no streaming — outputs printed after).
+            parallel_tasks: dict[str, object] = {}
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                if not skip_qa:
+                    parallel_tasks["qa"] = pool.submit(
+                        QAAgent(settings, repo_path, model=settings.analysis_model).run,
+                        f"Check test coverage for changes made for: {task}",
+                        project_ctx,
+                        False,
+                    )
+                if not skip_audit:
+                    parallel_tasks["audit"] = pool.submit(
+                        SecurityAgent(settings, repo_path, model=settings.analysis_model).run,
+                        f"Audit changes made for: {task}. Use get_git_diff to see what changed.",
+                        project_ctx,
+                        False,
+                    )
+
+            if "qa" in parallel_tasks:
+                qa_out = parallel_tasks["qa"].result()  # type: ignore[union-attr]
+                console.print(Rule("[cyan]QA[/cyan]", style="dim"))
+                console.print(qa_out)
+                round_findings.append(f"## QA\n{qa_out}")
+                combined += qa_out
+                last_qa_out = qa_out
+
+            if "audit" in parallel_tasks:
+                audit_out = parallel_tasks["audit"].result()  # type: ignore[union-attr]
+                console.print(Rule("[cyan]Security[/cyan]", style="dim"))
+                console.print(audit_out)
+                round_findings.append(f"## Security\n{audit_out}")
+                combined += audit_out
+                last_audit_out = audit_out
 
         criticals, warnings = count_issues(combined)
 
