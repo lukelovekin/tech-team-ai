@@ -90,9 +90,10 @@ separate from a claude.ai subscription. You need an API key from
 likely have API access, but it's a separate billing line from the claude.ai subscription.
 
 **Cost:** agents are pay-per-use (token-based). A single `review` or `dev` on a small
-change is cheap. A `collab` run with 5 rounds and 4 agents on a large feature is not trivial.
-Prompt caching is applied to all system prompts, which reduces cost on the multi-turn
-tool-use loops, but set expectations before running `collab` on a 3000-line file.
+change is cheap. `collab` defaults to 2 rounds (one build + one revision) — increase
+with `--max-rounds` only when needed, as each round runs the full developer + analysis stack.
+Prompt caching is applied to all system prompts, reducing cost on multi-turn tool-use loops.
+Developer and Architect use Sonnet; Reviewer, QA, and Security use Haiku (3x faster, 20x cheaper).
 
 **Platform:** works on Mac and Linux. Windows users need WSL or Git Bash (the pre-commit
 hook scripts are bash). Python 3.11+ required.
@@ -356,7 +357,8 @@ Use `--init` when starting a brand-new project. It runs `git init` in the target
    findings labelled [CRITICAL] / [WARNING]
 
 4. If issues found: Developer fixes, back to step 3
-   Repeats up to --max-rounds (default: 5)
+   Repeats up to --max-rounds (default: 2)
+   On the final round, unresolved findings are printed and saved to briefing/brief.md
 
 5. All agents satisfied, full diff shown
 
@@ -367,10 +369,11 @@ Use `--init` when starting a brand-new project. It runs `git init` in the target
 
 | Flag | Default | Effect |
 |---|---|---|
-| `--max-rounds` | 5 | Maximum fix iterations before stopping |
+| `--max-rounds` | 2 | Max dev→review cycles. Each round costs API credits |
 | `--no-plan` | off | Skip architect phase, go straight to developer |
 | `--no-qa` | off | Skip QA in the review loop |
 | `--no-audit` | off | Skip security in the review loop |
+| `--init` | off | `git init` the target directory if it has no `.git` |
 
 ---
 
@@ -545,9 +548,17 @@ multi-turn tool-use loops that make up each agent run.
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `ANTHROPIC_API_KEY` | yes | | Anthropic API key |
-| `TECH_TEAM_MODEL` | no | `claude-sonnet-4-6` | Model for all agents |
+| `TECH_TEAM_MODEL` | no | `claude-sonnet-4-6` | Model for Developer and Architect agents |
+| `TECH_TEAM_ANALYSIS_MODEL` | no | `claude-haiku-4-5-20251001` | Model for Reviewer, QA, and Security agents |
 | `TECH_TEAM_MAX_TOKENS` | no | `8192` | Max tokens per response |
-| `TECH_TEAM_TIMEOUT` | no | `120` | Shell command timeout (seconds) |
+| `TECH_TEAM_SHELL_TIMEOUT` | no | `120` | Shell command timeout (seconds) |
+
+Set in `~/.config/tech-team/config` (created by `tech-team setup`) or in a local `.env` file.
+
+**Example** — swap analysis agents to Sonnet for deeper review:
+```bash
+TECH_TEAM_ANALYSIS_MODEL=claude-sonnet-4-6
+```
 
 ---
 
