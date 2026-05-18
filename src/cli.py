@@ -14,7 +14,7 @@ from src.agents.developer import DeveloperAgent
 from src.agents.qa import QAAgent
 from src.agents.reviewer import ReviewerAgent
 from src.agents.security import SecurityAgent
-from src.config import Settings, find_repo_root
+from src.config import Settings, find_repo_root, read_global_key, write_global_key, GLOBAL_CONFIG_FILE
 from src.orchestrator import run_pipeline
 from src.collab import run_collab, show_diff, count_issues
 
@@ -48,8 +48,59 @@ def _load_settings() -> Settings:
         return Settings()  # type: ignore[call-arg]
     except Exception as e:
         console.print(f"[red]Config error:[/red] {e}")
-        console.print("[dim]Make sure ANTHROPIC_API_KEY is set in your environment or .env file[/dim]")
+        console.print("[dim]Run [bold]tech-team setup[/bold] to save your Anthropic API key.[/dim]")
+        console.print("[dim]Get a key at https://console.anthropic.com[/dim]")
         raise typer.Exit(1)
+
+
+# ---------------------------------------------------------------------------
+# Setup
+# ---------------------------------------------------------------------------
+
+
+@app.command()
+def setup() -> None:
+    """First-time setup: save your Anthropic API key globally.
+
+    \b
+    Stores the key in ~/.config/tech-team/config (chmod 600) so it works
+    from any repo without per-project .env files.
+
+    \b
+    Get a key at: https://console.anthropic.com
+    Pricing:      https://anthropic.com/pricing  (you pay Anthropic directly)
+    """
+    console.print()
+    console.print(Rule("[bold cyan]tech-team setup[/bold cyan]", style="cyan"))
+    console.print()
+
+    existing = read_global_key()
+    if existing:
+        masked = existing[:8] + "..." + existing[-4:]
+        console.print(f"[dim]Current key: {masked}[/dim]")
+        if not typer.confirm("Replace existing key?", default=False):
+            console.print("[dim]No changes made.[/dim]")
+            raise typer.Exit(0)
+
+    console.print("  Get your API key at [cyan]https://console.anthropic.com[/cyan]")
+    console.print("  You are billed directly by Anthropic based on usage.")
+    console.print("  Prompt caching is enabled — repeated runs cost significantly less.")
+    console.print()
+
+    api_key = typer.prompt("Anthropic API key", hide_input=True)
+    api_key = api_key.strip()
+
+    if not api_key.startswith("sk-ant-"):
+        console.print("[yellow]Warning: key doesn't look like an Anthropic key (expected sk-ant-...).[/yellow]")
+        if not typer.confirm("Save it anyway?", default=False):
+            console.print("[dim]Aborted.[/dim]")
+            raise typer.Exit(1)
+
+    write_global_key(api_key)
+    console.print()
+    console.print(f"[green]Key saved to {GLOBAL_CONFIG_FILE}[/green]")
+    console.print("[dim]You're all set. Try: tech-team review[/dim]")
+    console.print()
 
 
 # ---------------------------------------------------------------------------
