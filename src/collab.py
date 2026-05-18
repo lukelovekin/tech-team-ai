@@ -82,6 +82,9 @@ def run_collab(
     pre_dev_untracked = set(_get_untracked_files(repo_path))
 
     previous_findings = ""
+    last_review = ""
+    last_qa_out = ""
+    last_audit_out = ""
 
     # -------------------------------------------------------------------------
     # Steps 2–N: Developer → Reviewer / QA / Security loop
@@ -122,6 +125,7 @@ def run_collab(
         )
         round_findings.append(f"## Code Review\n{review_out}")
         combined += review_out
+        last_review = review_out
 
         if not skip_qa:
             console.print(Rule("[cyan]QA[/cyan]", style="dim"))
@@ -131,6 +135,7 @@ def run_collab(
             )
             round_findings.append(f"## QA\n{qa_out}")
             combined += qa_out
+            last_qa_out = qa_out
 
         if not skip_audit:
             console.print(Rule("[cyan]Security[/cyan]", style="dim"))
@@ -140,6 +145,7 @@ def run_collab(
             )
             round_findings.append(f"## Security\n{audit_out}")
             combined += audit_out
+            last_audit_out = audit_out
 
         criticals, warnings = count_issues(combined)
 
@@ -171,6 +177,7 @@ def run_collab(
     console.print()
 
     if typer.confirm("Apply these changes?", default=True):
+        _write_brief(repo_path, task, plan, last_review, last_qa_out, last_audit_out)
         console.print("[green]Changes applied. Review and commit when ready.[/green]")
         return True
 
@@ -188,6 +195,29 @@ def run_collab(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+def _write_brief(
+    repo_path: Path,
+    task: str,
+    plan: str,
+    review: str,
+    qa: str,
+    audit: str,
+) -> None:
+    sections = [f"# tech-team session brief\n\n**Task:** {task}"]
+    if plan:
+        sections.append(f"## Architecture plan\n\n{plan}")
+    if review:
+        sections.append(f"## Code review\n\n{review}")
+    if qa:
+        sections.append(f"## QA\n\n{qa}")
+    if audit:
+        sections.append(f"## Security audit\n\n{audit}")
+    brief_path = repo_path / "briefing" / "brief.md"
+    brief_path.parent.mkdir(exist_ok=True)
+    brief_path.write_text("\n\n---\n\n".join(sections), encoding="utf-8")
+    console.print(f"[dim]Session brief written to {brief_path}[/dim]")
 
 
 def show_diff(repo_path: Path, label: str) -> None:

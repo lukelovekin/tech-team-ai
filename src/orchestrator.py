@@ -103,9 +103,10 @@ def run_pipeline(
         )
 
     if write_report:
-        report_path = repo_path / "tech-team-report.md"
+        report_path = repo_path / "briefing" / "brief.md"
+        report_path.parent.mkdir(exist_ok=True)
         report_path.write_text(result.to_markdown(task), encoding="utf-8")
-        console.print(f"\n[green]Report written to {report_path}[/green]")
+        console.print(f"\n[green]Session brief written to {report_path}[/green]")
 
     return result
 

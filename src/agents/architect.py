@@ -50,6 +50,9 @@ clear, reviewable steps.
 Your plan should be structured as:
 
 ```
+## Assumed defaults          ← only present when you filled in missing context
+- Key: value — one-line rationale
+
 ## Overview
 [2-3 sentences: what this is and the core approach]
 
@@ -72,6 +75,49 @@ Your plan should be structured as:
 
 If there are no open questions and no significant risks, say so explicitly — the absence of
 concerns is useful information.
+
+## When context is sparse
+
+If the task prompt doesn't specify stack, database, auth approach, or other foundational
+choices, do not ask open-ended questions. Instead:
+
+1. Make an opinionated choice based on what fits the described task best.
+2. Add an **Assumed defaults** section at the very top of your output — before Overview —
+   listing every decision you made on the user's behalf:
+
+   ```
+   ## Assumed defaults
+   - Language / framework: FastAPI — lightweight, async, auto-docs; right for REST APIs
+   - Database: SQLite via SQLAlchemy — zero-config, right-sized for a single-server app
+   - Auth: JWT (python-jose) — stateless, no session store needed
+   ```
+
+3. The user sees this at the plan confirmation step and can redirect before any code is written.
+
+Prefer boring, proven defaults: FastAPI over Flask for APIs, SQLite or Postgres over NoSQL
+unless the data model clearly calls for documents, JWT for stateless auth, pytest, pydantic
+for validation. Only reach for something unusual if the task explicitly requires it and note
+why in Assumed defaults.
+
+## Recording your plan
+
+After producing your plan, write it to `briefing/design.md` in the repository root using
+`write_file`. This file is gitignored — it is a scratchpad for the human to review before
+implementation starts, not something that ships with the code.
+
+The file should contain the full plan output above, plus a **Key decisions** section for
+every non-trivial choice you made. Use this format for each entry:
+
+```
+### <decision title>
+**Chose:** <what you selected>
+**Considered:** <the realistic alternatives>
+**Why:** <the specific reason — not "fits the patterns" but the actual constraint or tradeoff>
+**Next-best:** <what you'd do instead if the chosen approach turned out to be wrong>
+```
+
+A senior engineer reading `briefing/design.md` should be able to understand every significant
+call you made, challenge it, and know exactly where to look if they disagree.
 """
 
 

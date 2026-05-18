@@ -111,6 +111,67 @@ hook scripts are bash). Python 3.11+ required.
 
 ---
 
+## Task template
+
+`task.template.md` is an optimised prompt structure for `collab` and `dev --plan`. Copy
+it into your project, fill in what you know, and leave the rest blank.
+
+```bash
+cp ~/tech-team-ai/task.template.md ./TASK.md
+# fill in Task (required) and anything else you know
+tech-team collab "$(cat TASK.md)"
+```
+
+**Blank fields are intentional.** Any section you leave empty — stack, database, auth,
+data model — the Architect fills in with an opinionated default and surfaces it at the top
+of the plan under **Assumed defaults** before any code is written:
+
+```
+## Assumed defaults
+- Language / framework: FastAPI — lightweight, async, auto-docs; right for REST APIs
+- Database: SQLite via SQLAlchemy — zero-config, right-sized for a single-server app
+- Auth: JWT (python-jose) — stateless, no session store needed
+```
+
+You see every assumption at the plan confirmation step and can redirect before the
+developer touches a single file.
+
+---
+
+## briefing/ — session scratchpad
+
+Every `collab`, `run`, and `check --report` session writes a gitignored `briefing/` folder
+in the target repo. It's a scratchpad for the human — never committed, never shown in diffs.
+
+```
+briefing/
+  design.md   # Architect's plan + key decisions (written before any code)
+  brief.md    # End-of-session combined output: plan, review, QA, security
+```
+
+**`briefing/design.md`** is written by the Architect before implementation starts. It contains
+the full implementation plan plus a **Key decisions** section for every non-trivial call:
+
+```
+### <decision title>
+Chose: <what was selected>
+Considered: <realistic alternatives>
+Why: <the specific constraint or tradeoff>
+Next-best: <what to do if this turns out to be wrong>
+```
+
+This is the "senior sign-off" view — everything a senior engineer would want to understand
+and potentially challenge before the first line of code is written.
+
+**`briefing/brief.md`** is the end-of-session combined brief: architect plan, code review
+findings, QA analysis, and security audit. The brief from the final round is kept, so it
+reflects the state of the code after any developer fix cycles.
+
+Both files are overwritten each session. If you want to preserve a session's output, copy it
+out before running again.
+
+---
+
 ## Install
 
 ```bash
@@ -257,7 +318,7 @@ Skip individual agents or save a report:
 
 ```bash
 tech-team check --no-arch --no-qa          # just review + security
-tech-team check --base main --report       # full check vs main, write tech-team-report.md
+tech-team check --base main --report       # full check vs main, write briefing/brief.md
 tech-team check --full --no-arch           # whole repo, skip architect
 ```
 
@@ -347,7 +408,7 @@ You can accept the suggestion, edit it, or reject it.
 ### `run`
 
 Fire-and-forget pipeline: chains all agents without pausing for confirmation and writes
-`tech-team-report.md` at the end.
+`briefing/brief.md` at the end.
 
 ```bash
 tech-team run "JIRA-123: add password reset flow"
@@ -443,7 +504,7 @@ tech-team mcp
 | You wrote code, want it reviewed before committing | `tech-team fix` |
 | Before pushing a branch | `tech-team check` |
 | Before opening a PR against main | `tech-team check --base main` |
-| Periodic full repo health check | `tech-team check --full --report` |
+| Periodic full repo health check | `tech-team check --full --report` (writes `briefing/brief.md`) |
 | Dedicated test pass | `tech-team qa` |
 | Reviewing someone else's code | `tech-team review src/their-module/` |
 | Fire-and-forget ticket implementation | `tech-team run "TICKET-123: ..."` |

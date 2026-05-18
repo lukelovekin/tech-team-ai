@@ -178,7 +178,7 @@ def run(
     no_plan: Annotated[bool, typer.Option("--no-plan", help="Skip architecture planning step.")] = False,
     no_qa: Annotated[bool, typer.Option("--no-qa", help="Skip QA step.")] = False,
     no_audit: Annotated[bool, typer.Option("--no-audit", help="Skip security audit step.")] = False,
-    no_report: Annotated[bool, typer.Option("--no-report", help="Don't write tech-team-report.md.")] = False,
+    no_report: Annotated[bool, typer.Option("--no-report", help="Don't write briefing/brief.md.")] = False,
 ) -> None:
     """Full pipeline: architect → developer → reviewer → QA → security audit."""
     repo_path = _resolve_repo(repo)
@@ -217,7 +217,7 @@ def check(
     no_qa: Annotated[bool, typer.Option("--no-qa", help="Skip QA / test coverage check.")] = False,
     no_arch: Annotated[bool, typer.Option("--no-arch", help="Skip architecture review.")] = False,
     no_audit: Annotated[bool, typer.Option("--no-audit", help="Skip security audit.")] = False,
-    report: Annotated[bool, typer.Option("--report", help="Write findings to tech-team-report.md.")] = False,
+    report: Annotated[bool, typer.Option("--report", help="Write findings to briefing/brief.md.")] = False,
 ) -> None:
     """
     Run all analysis agents against recent unpushed changes (default) or the full repo (--full).
@@ -235,7 +235,7 @@ def check(
       --no-qa         Skip QA
       --no-arch       Skip architect
       --no-audit      Skip security
-      --report        Write tech-team-report.md
+      --report        Write briefing/brief.md
 
     \b
     Examples:
@@ -317,9 +317,10 @@ def _write_check_report(repo_path: Path, scope: "context.ChangeScope", findings:
     sections = [f"# tech-team check report\n\n**Scope:** {scope.summary()}"]
     for key, output in findings.items():
         sections.append(f"## {labels.get(key, key)}\n\n{output}")
-    report_path = repo_path / "tech-team-report.md"
+    report_path = repo_path / "briefing" / "brief.md"
+    report_path.parent.mkdir(exist_ok=True)
     report_path.write_text("\n\n---\n\n".join(sections), encoding="utf-8")
-    console.print(f"\n[green]Report written to {report_path}[/green]")
+    console.print(f"\n[green]Brief written to {report_path}[/green]")
 
 
 # ---------------------------------------------------------------------------

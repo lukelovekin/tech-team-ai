@@ -40,8 +40,10 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
-# tech-team output files
+# tech-team output files — gitignored scratchpad, not for committing
 tech-team-report.md
+briefing/
+task.md
 
 # Claude Code
 .claude/settings.local.json
