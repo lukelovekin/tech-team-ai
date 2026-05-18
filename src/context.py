@@ -17,6 +17,20 @@ _STACK_MARKERS = {
     "composer.json": "PHP",
 }
 
+# Entry point files to read directly — gives agents actual content, not just filenames.
+_ENTRY_POINTS = [
+    "main.py", "app.py", "server.py", "index.py",          # Python
+    "src/main.py", "src/app.py",
+    "index.ts", "index.js", "server.ts", "server.js",       # Node
+    "src/index.ts", "src/index.js", "src/main.ts",
+    "app/layout.tsx", "app/page.tsx",                        # Next.js
+    "main.go", "cmd/main.go",                                # Go
+    "src/main.rs",                                           # Rust
+    "Makefile",
+]
+
+_MAX_ENTRY_POINT_CHARS = 2000
+
 
 def gather(repo_path: Path, max_readme_chars: int = 3000) -> str:
     """
@@ -24,6 +38,13 @@ def gather(repo_path: Path, max_readme_chars: int = 3000) -> str:
     Keeps it short — just enough for the agent to orient itself.
     """
     sections: list[str] = []
+
+    # Architect's structured handoff — if present, this is the richest context
+    # available and replaces most of the generic discovery below.
+    architect_context = repo_path / "briefing" / "context.md"
+    if architect_context.exists():
+        content = architect_context.read_text(encoding="utf-8", errors="replace")
+        sections.append(f"## Architect's codebase briefing\n{content}")
 
     # Project instructions (CLAUDE.md takes priority, then README)
     for filename in ("CLAUDE.md", "README.md"):
@@ -38,7 +59,7 @@ def gather(repo_path: Path, max_readme_chars: int = 3000) -> str:
     # Tech stack detection
     detected = [label for marker, label in _STACK_MARKERS.items() if (repo_path / marker).exists()]
     if detected:
-        sections.append(f"## Tech stack\n" + "\n".join(f"- {s}" for s in detected))
+        sections.append("## Tech stack\n" + "\n".join(f"- {s}" for s in detected))
 
     # Top-level directory structure
     try:
@@ -53,6 +74,23 @@ def gather(repo_path: Path, max_readme_chars: int = 3000) -> str:
             sections.append("## Project structure (top level)\n" + "\n".join(tree_lines))
     except OSError:
         pass
+
+    # Entry point files — read actual content so agents don't need to re-fetch them.
+    # Skip if the architect's briefing is present (it already covers key files).
+    if not architect_context.exists():
+        entry_snippets = []
+        for rel in _ENTRY_POINTS:
+            path = repo_path / rel
+            if path.exists() and path.is_file():
+                try:
+                    content = path.read_text(encoding="utf-8", errors="replace")
+                    if len(content) > _MAX_ENTRY_POINT_CHARS:
+                        content = content[:_MAX_ENTRY_POINT_CHARS] + "\n... (truncated)"
+                    entry_snippets.append(f"### {rel}\n```\n{content}\n```")
+                except OSError:
+                    pass
+        if entry_snippets:
+            sections.append("## Entry points\n" + "\n\n".join(entry_snippets))
 
     # Current git branch and recent commits
     branch = _git(repo_path, ["git", "branch", "--show-current"])

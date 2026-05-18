@@ -218,6 +218,43 @@ class TestBaseAgentLoop:
 # ---------------------------------------------------------------------------
 
 
+class TestContextGather:
+    def test_includes_architect_briefing_when_present(self, repo: Path) -> None:
+        from src.context import gather
+
+        (repo / "briefing").mkdir()
+        (repo / "briefing" / "context.md").write_text("## Key files\nmain.py: entry point\n")
+
+        result = gather(repo)
+        assert "Architect's codebase briefing" in result
+        assert "Key files" in result
+
+    def test_skips_entry_points_when_briefing_present(self, repo: Path) -> None:
+        from src.context import gather
+
+        (repo / "briefing").mkdir()
+        (repo / "briefing" / "context.md").write_text("briefing content")
+        (repo / "main.py").write_text("# entry point")
+
+        result = gather(repo)
+        assert "Entry points" not in result
+
+    def test_reads_entry_points_when_no_briefing(self, repo: Path) -> None:
+        from src.context import gather
+
+        (repo / "main.py").write_text("def main(): pass\n")
+
+        result = gather(repo)
+        assert "Entry points" in result
+        assert "def main" in result
+
+    def test_no_briefing_no_entry_points_still_works(self, repo: Path) -> None:
+        from src.context import gather
+
+        result = gather(repo)
+        assert "Project context" in result
+
+
 class TestWriteBrief:
     def test_writes_brief_file(self, repo: Path) -> None:
         from src.collab import _write_brief

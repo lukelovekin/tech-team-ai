@@ -101,12 +101,11 @@ why in Assumed defaults.
 
 ## Recording your plan
 
-After producing your plan, write it to `briefing/design.md` in the repository root using
-`write_file`. This file is gitignored — it is a scratchpad for the human to review before
-implementation starts, not something that ships with the code.
+After producing your plan, write two files to the `briefing/` directory using `write_file`:
 
-The file should contain the full plan output above, plus a **Key decisions** section for
-every non-trivial choice you made. Use this format for each entry:
+**1. `briefing/design.md`** — the full plan for the human to review. Include:
+- The full plan output above
+- A **Key decisions** section for every non-trivial choice, using this format:
 
 ```
 ### <decision title>
@@ -116,8 +115,33 @@ every non-trivial choice you made. Use this format for each entry:
 **Next-best:** <what you'd do instead if the chosen approach turned out to be wrong>
 ```
 
-A senior engineer reading `briefing/design.md` should be able to understand every significant
-call you made, challenge it, and know exactly where to look if they disagree.
+**2. `briefing/context.md`** — a structured handoff for the developer, reviewer, QA, and
+security agents so they don't need to re-explore the codebase from scratch. Include:
+
+```
+## Key files
+<path>: <one-line purpose>
+<path>: <one-line purpose>
+...
+
+## Patterns in use
+- Error handling: <how errors are handled>
+- Auth: <how auth works>
+- DB access: <ORM/query pattern>
+- Testing: <framework and conventions>
+- API style: <REST/GraphQL/RPC, route conventions>
+- <any other pattern a new agent needs to match>
+
+## Entry points
+<path>: <what it does, what it wires together>
+
+## Do not re-implement
+<anything that already exists that agents should reuse rather than recreate>
+```
+
+Only include sections that are relevant — a fresh repo with no patterns yet should say so.
+`briefing/context.md` is loaded automatically into every subsequent agent's context, so
+write it as a briefing to a senior engineer joining the codebase mid-sprint.
 """
 
 
