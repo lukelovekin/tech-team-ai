@@ -333,7 +333,11 @@ and confirm before anything is kept.
 tech-team collab "add user authentication"
 tech-team collab "refactor the payment service" --max-rounds 3
 tech-team collab "add rate limiting" --no-plan --no-audit
+tech-team collab "build a todo API" --repo ~/new-project --init
 ```
+
+Use `--init` when starting a brand-new project. It runs `git init` in the target directory
+(creating it if needed) so you don't have to set up the repo manually first.
 
 **Flow:**
 
